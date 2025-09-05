@@ -1,0 +1,12 @@
+﻿{
+  "type":"object",
+  "required":["themes","questions","missing"],
+  "properties":{
+    "themes":{"type":"array","items":{"type":"string"}},
+    "questions":{"type":"array","items":{"type":"string"}},
+    "missing":{"type":"array","items":{"type":"string"}},
+    "homework":{"type":"array","items":{"type":"string"}},
+    "risk_flags":{"type":"array","items":{"type":"string"}}
+  },
+  "additionalProperties":false
+}

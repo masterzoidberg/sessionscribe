@@ -1,0 +1,6 @@
+﻿component: PHIRedactor
+inputs: { caption_chunks }
+outputs: { redacted_draft, entity_index, snapshot_api }
+behaviors:
+  - fast regex per chunk; spaCy NER on cadence; merge by precedence
+  - GET /redaction/snapshot → {snapshot_id, entities, preview_diff}

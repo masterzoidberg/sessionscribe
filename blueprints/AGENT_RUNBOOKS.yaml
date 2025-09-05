@@ -1,0 +1,8 @@
+﻿agents:
+  claude_code: { ui: true, tests: true }
+  qwen_code:   { asr: true, redaction: true, insights_bridge: true }
+  gemini_cli:  { prompts: true, schemas: true, verification: true }
+  codex_code:  { packaging: true, ipc: true, ci: true }
+quality_gates:
+  - Offline gate; redact-before-send gate
+  - DAP JSON must validate before save

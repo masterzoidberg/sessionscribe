@@ -1,0 +1,13 @@
+﻿strategy:
+  unit:
+    - WASAPI probe; VAD framing; regex/NER detectors
+    - DAP schema valid/invalid cases
+  integration:
+    - Stereo → captions p95 ≤ 2s
+    - Redaction review → *_redacted.txt
+    - Wizard+Prompt → valid DAP JSON → *_note.txt
+    - QuickRedact→Snapshot→Confirm→Send gates + insights JSON validate
+  e2e:
+    - Hotkeys record/stop; PHIReview; note save; dashboard send disabled offline
+metrics:
+  - Caption p95 ≤ 2.0s, Redaction F1 recall ≥0.95 precision ≥0.90, 100% JSON validity

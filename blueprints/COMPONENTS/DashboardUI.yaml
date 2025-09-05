@@ -1,0 +1,6 @@
+﻿component: DashboardUI
+elements:
+  - Buttons: Themes, Questions, Missing, Homework, Risk
+  - ConfirmModal: diff + entities (Enter=Send, Esc=Cancel)
+policy:
+  - Buttons disabled unless snapshot present & online allowed

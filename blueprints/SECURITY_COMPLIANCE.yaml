@@ -1,0 +1,8 @@
+﻿phi_pipeline:
+  local_only: [recording, transcription, redaction, note rendering]
+  network_optional: [insights (redacted snapshot only)]
+controls:
+  redact_before_send: true
+  content_logging: disabled
+storage:
+  files: .wav, *_original.txt, *_redacted.txt, *_note.txt

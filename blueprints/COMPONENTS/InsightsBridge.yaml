@@ -1,0 +1,7 @@
+﻿component: InsightsBridge
+inputs: { snapshot_id, ask_for[] }
+outputs: { insights_json }
+gates:
+  - offline==false; snapshot exists; redacted source only
+api:
+  - POST /insights/send → validate against schemas/insights.schema.json

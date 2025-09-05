@@ -1,0 +1,19 @@
+﻿# Node / TypeScript
+node_modules/
+dist/
+coverage/
+*.log
+pnpm-lock.yaml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.*
+# Build
+/build/
+/out/
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,25 @@
+﻿project:
+  name: SessionScribe (Windows)
+  one_liner: Record stereo, live-transcribe, PHI review, DAP note, plain-text saves.
+scope_now:
+  - Dual audio capture (Mic + WASAPI Loopback) → stereo WAV
+  - Live captions via on-device Whisper (channel-aware)
+  - PHI redaction review with evidence; background redaction enabled
+  - DAP note from editable prompt (OpenAI API optional; redact-before-send)
+  - Save: *_audio.wav, *_original.txt, *_redacted.txt, *_note.txt
+out_of_scope_v1: [consent UX, retention automation, PDF/DOCX, EHR sync]
+stack:
+  frontend: Electron + React + Tailwind
+  backend: FastAPI + WebSocket
+  ai:
+    asr: faster-whisper (CUDA if available), VAD+chunking
+    redaction: regex fast-pass + spaCy NER cadence
+    llm: OpenAI API with JSON-only output; local LLM later
+non_functionals:
+  performance: { live_caption_latency_p95_s: 2.0 }
+  privacy: { offline_default: true, redact_before_send: true }
+acceptance_criteria:
+  - Stereo recording with captions ≤ 2.0s p95
+  - Redaction snapshot + review → *_redacted.txt
+  - DAP JSON validates → *_note.txt
+  - Dashboard sends only redacted snapshots; view-only (no disk)

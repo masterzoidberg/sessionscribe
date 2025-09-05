@@ -1,0 +1,8 @@
+﻿component: Recorder
+inputs: { mic_device, loopback_device }
+outputs: { stereo_wav_path, stream: pcm_frames_l_r_48k }
+behaviors:
+  - start(): open WASAPI mic + loopback, align timestamps, write stereo WAV
+  - stop(): flush/close; emit paths
+acceptance:
+  - L=Therapist(Mic), R=Client(Loopback); levels visible; errors surfaced

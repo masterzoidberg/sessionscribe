@@ -1,0 +1,5 @@
+﻿target: Windows 10/11
+packaging:
+  - electron-builder NSIS
+first_run:
+  - Choose output folder; set offline default; disable dashboard by default

@@ -1,0 +1,6 @@
+﻿component: NoteBuilder
+inputs: { session_type, transcript_redacted, prompt_version }
+outputs: { dap_json, note_txt_path }
+behaviors:
+  - OpenAI JSON-only → validate against schemas/note.dap.schema.json
+  - repair once if invalid; render txt; save *_note.txt

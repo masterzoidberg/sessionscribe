@@ -1,0 +1,15 @@
+﻿{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"DAP Note",
+  "type":"object",
+  "required":["data","assessment","plan"],
+  "properties":{
+    "session_type":{"type":"string","enum":["Individual","Intake","Couples","Family"]},
+    "data":{"type":"string","minLength":10,"maxLength":3000},
+    "assessment":{"type":"string","minLength":10,"maxLength":3000},
+    "plan":{"type":"string","minLength":10,"maxLength":3000},
+    "risk_flags":{"type":"array","items":{"type":"string"}},
+    "followups":{"type":"array","items":{"type":"string"}}
+  },
+  "additionalProperties":false
+}

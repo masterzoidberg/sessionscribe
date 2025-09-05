@@ -1,0 +1,7 @@
+﻿component: LiveTranscriber
+inputs: { pcm_stream, model: faster-whisper }
+outputs: { captions: [{channel, text, t0, t1}] }
+behaviors:
+  - VAD + chunking; emit partials with ≤2s p95 latency
+ui:
+  - two lanes or [T]/[C] tags

@@ -1,0 +1,8 @@
+﻿tasks:
+  - DISCOVERY
+  - SCAFFOLD
+  - SSS_IMPL: [Recorder, LiveTranscriber, PHIRedactor, NoteBuilder, InsightsBridge, DashboardUI]
+  - HARDEN
+  - DEPLOY
+critical_path:
+  - Recorder → LiveTranscriber → PHIRedactor → NoteBuilder → DashboardUI/InsightsBridge → Tests → Package
