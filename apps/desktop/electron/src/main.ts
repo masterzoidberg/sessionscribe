@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import Store from 'electron-store';
 import axios from 'axios';
+import WebSocket from 'ws';
 
 // Ensure single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -12,6 +13,7 @@ if (!gotTheLock) {
 
 const store = new Store();
 let mainWindow: BrowserWindow | null = null;
+let transcriptionSocket: WebSocket | null = null;
 
 // Security: Register file protocol for local output directory
 app.whenReady().then(() => {
@@ -115,6 +117,27 @@ ipcMain.handle('record:stop', async () => {
   } catch (error) {
     console.error('Error stopping recording:', error);
     return { success: false };
+  }
+});
+
+ipcMain.handle('transcription:connect', () => {
+  if (transcriptionSocket) {
+    return;
+  }
+  transcriptionSocket = new WebSocket('ws://localhost:7031/asr/live');
+
+  transcriptionSocket.on('message', (data) => {
+    mainWindow?.webContents.send('transcription:data', data.toString());
+  });
+
+  transcriptionSocket.on('close', () => {
+    transcriptionSocket = null;
+  });
+});
+
+ipcMain.handle('transcription:disconnect', () => {
+  if (transcriptionSocket) {
+    transcriptionSocket.close();
   }
 });
 

@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     start: (deviceConfig: any) => ipcRenderer.invoke('record:start', deviceConfig),
     stop: () => ipcRenderer.invoke('record:stop'),
   },
+  transcription: {
+    onData: (callback: any) => ipcRenderer.on('transcription:data', callback),
+    connect: () => ipcRenderer.invoke('transcription:connect'),
+    disconnect: () => ipcRenderer.invoke('transcription:disconnect'),
+  },
   settings: {
     get: (key: string) => ipcRenderer.invoke('settings:get', key),
     set: (key: string, value: any) => ipcRenderer.invoke('settings:set', key, value),
@@ -27,6 +32,11 @@ declare global {
         getAudioDevices: () => Promise<any[]>;
         start: (deviceConfig: any) => Promise<{ success: boolean; sessionId?: string }>;
         stop: () => Promise<{ success: boolean }>;
+      };
+      transcription: {
+        onData: (callback: any) => void;
+        connect: () => Promise<void>;
+        disconnect: () => Promise<void>;
       };
       settings: {
         get: (key: string) => Promise<any>;

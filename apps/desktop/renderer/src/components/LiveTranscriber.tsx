@@ -19,69 +19,47 @@ const LiveTranscriber: React.FC = () => {
     avg: 0,
     count: 0
   });
-  
+
   const scrollRef = useRef<HTMLDivElement>(null);
-  const wsRef = useRef<WebSocket | null>(null);
   const latencyBuffer = useRef<number[]>([]);
 
   useEffect(() => {
-    // Auto-scroll to bottom when new transcriptions arrive
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [transcriptions]);
 
   useEffect(() => {
-    // Connect to transcription service
     connectToService();
-    
-    return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
+
+    const handleTranscriptionData = (_event: any, data: string) => {
+      const parsedData = JSON.parse(data);
+      if (parsedData.type === 'transcription' && parsedData.data?.text) {
+        const now = Date.now();
+        const latency = (now - parsedData.data.timestamp) / 1000;
+        addTranscription({
+          ...parsedData.data,
+          timestamp: parsedData.data.timestamp
+        });
+        updateLatencyMetrics(latency);
       }
+    };
+
+    window.electronAPI.transcription.onData(handleTranscriptionData);
+
+    return () => {
+      window.electronAPI.transcription.disconnect();
     };
   }, []);
 
-  const connectToService = () => {
+  const connectToService = async () => {
     try {
-      wsRef.current = new WebSocket('ws://localhost:7031/transcribe');
-      
-      wsRef.current.onopen = () => {
-        setIsConnected(true);
-        console.log('Connected to transcription service');
-      };
-      
-      wsRef.current.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'transcription' && data.data?.transcriptions) {
-          const now = Date.now();
-          data.data.transcriptions.forEach((transcription: any) => {
-            const latency = (now - data.data.timestamp) / 1000;
-            addTranscription({
-              ...transcription,
-              timestamp: data.data.timestamp
-            });
-            updateLatencyMetrics(latency);
-          });
-        }
-      };
-      
-      wsRef.current.onclose = () => {
-        setIsConnected(false);
-        console.log('Disconnected from transcription service');
-        
-        // Attempt reconnection after 3 seconds
-        setTimeout(connectToService, 3000);
-      };
-      
-      wsRef.current.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setIsConnected(false);
-      };
-      
+      await window.electronAPI.transcription.connect();
+      setIsConnected(true);
+      console.log('Connected to transcription service');
     } catch (error) {
       console.error('Error connecting to transcription service:', error);
+      setIsConnected(false);
     }
   };
 
@@ -91,18 +69,16 @@ const LiveTranscriber: React.FC = () => {
 
   const updateLatencyMetrics = (latency: number) => {
     latencyBuffer.current.push(latency);
-    
-    // Keep only last 100 measurements
+
     if (latencyBuffer.current.length > 100) {
       latencyBuffer.current.shift();
     }
-    
-    // Calculate metrics
+
     const sorted = [...latencyBuffer.current].sort((a, b) => a - b);
     const p95Index = Math.floor(sorted.length * 0.95);
     const p95 = sorted[p95Index] || 0;
     const avg = sorted.reduce((sum, val) => sum + val, 0) / sorted.length;
-    
+
     setLatencyMetrics({
       p95: p95,
       avg: avg,
@@ -115,17 +91,17 @@ const LiveTranscriber: React.FC = () => {
   };
 
   const copyAllTranscriptions = () => {
-    const allText = transcriptions.map(t => 
+    const allText = transcriptions.map(t =>
       `[${t.channel.toUpperCase()}] ${t.text}`
     ).join('\n');
     navigator.clipboard.writeText(allText);
   };
 
   const downloadTranscriptions = () => {
-    const content = transcriptions.map(t => 
+    const content = transcriptions.map(t =>
       `[${formatTime(t.t0)} - ${formatTime(t.t1)}] [${t.channel.toUpperCase()}] ${t.text}`
     ).join('\n');
-    
+
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -227,7 +203,7 @@ const LiveTranscriber: React.FC = () => {
           <div key={index} className={`border rounded p-3 ${getChannelColor(t.channel)}`}>
             <div className="flex justify-between items-start mb-2">
               <div className="flex items-center space-x-2">
-                <span className={`inline-block w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${
+                <span className={`inline-block w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center ${ 
                   t.channel === 'therapist' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
                 }`}>
                   {getChannelIcon(t.channel)}
@@ -261,18 +237,18 @@ const LiveTranscriber: React.FC = () => {
       <div className="border-b border-gray-200 p-4">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold">Live Transcription</h2>
-          
+
           <div className="flex items-center space-x-4">
             {/* Connection Status */}
             <div className="flex items-center space-x-2">
-              <div className={`w-2 h-2 rounded-full ${
+              <div className={`w-2 h-2 rounded-full ${ 
                 isConnected ? 'bg-green-500' : 'bg-red-500'
               }`}></div>
               <span className="text-xs text-gray-600">
                 {isConnected ? 'Connected' : 'Disconnected'}
               </span>
             </div>
-            
+
             {/* Latency Metrics */}
             <div className="flex items-center space-x-1 text-xs text-gray-600">
               <Clock className="h-3 w-3" />
@@ -286,7 +262,7 @@ const LiveTranscriber: React.FC = () => {
           <div className="flex space-x-2">
             <button
               onClick={() => setViewMode('lanes')}
-              className={`px-3 py-1 text-xs rounded ${
+              className={`px-3 py-1 text-xs rounded ${ 
                 viewMode === 'lanes' ? 'bg-blue-500 text-white' : 'bg-gray-200'
               }`}
             >
@@ -294,14 +270,14 @@ const LiveTranscriber: React.FC = () => {
             </button>
             <button
               onClick={() => setViewMode('unified')}
-              className={`px-3 py-1 text-xs rounded ${
+              className={`px-3 py-1 text-xs rounded ${ 
                 viewMode === 'unified' ? 'bg-blue-500 text-white' : 'bg-gray-200'
               }`}
             >
               Unified
             </button>
           </div>
-          
+
           <div className="flex space-x-2">
             <button
               onClick={copyAllTranscriptions}
@@ -328,8 +304,8 @@ const LiveTranscriber: React.FC = () => {
 
       {/* Footer */}
       <div className="border-t border-gray-200 p-2 text-xs text-gray-500 text-center">
-        {transcriptions.length} transcriptions • 
-        Avg latency: {latencyMetrics.avg.toFixed(2)}s • 
+        {transcriptions.length} transcriptions •
+        Avg latency: {latencyMetrics.avg.toFixed(2)}s •
         Target: ≤2.0s p95
       </div>
     </div>
