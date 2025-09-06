@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, protocol, shell } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import Store from 'electron-store';
+import axios from 'axios';
 
 // Ensure single instance
 const gotTheLock = app.requestSingleInstanceLock();
@@ -87,14 +88,34 @@ app.on('second-instance', () => {
 });
 
 // IPC handlers for secure communication
+ipcMain.handle('record:getAudioDevices', async () => {
+  try {
+    const response = await axios.get('http://localhost:7031/asr/devices');
+    return response.data.devices;
+  } catch (error) {
+    console.error('Error getting audio devices:', error);
+    return [];
+  }
+});
+
 ipcMain.handle('record:start', async (_, deviceConfig) => {
-  // Start recording via Python service
-  return { success: true, sessionId: Date.now().toString() };
+  try {
+    const response = await axios.post('http://localhost:7031/asr/start', deviceConfig);
+    return { success: true, sessionId: response.data.output_path };
+  } catch (error) {
+    console.error('Error starting recording:', error);
+    return { success: false };
+  }
 });
 
 ipcMain.handle('record:stop', async () => {
-  // Stop recording via Python service
-  return { success: true };
+  try {
+    await axios.post('http://localhost:7031/asr/stop');
+    return { success: true };
+  } catch (error) {
+    console.error('Error stopping recording:', error);
+    return { success: false };
+  }
 });
 
 ipcMain.handle('settings:get', async (_, key) => {

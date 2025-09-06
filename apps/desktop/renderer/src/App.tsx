@@ -8,7 +8,6 @@ import LiveDashboard from './components/LiveDashboard';
 
 const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<'record' | 'review' | 'note' | 'dashboard'>('record');
-  const [sessionData, setSessionData] = useState<any>(null);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -46,7 +45,7 @@ const App: React.FC = () => {
         {currentStep === 'record' && (
           <div className="h-full flex">
             <div className="flex-1 p-6">
-              <Recorder onSessionUpdate={setSessionData} />
+              <Recorder />
             </div>
             <div className="w-1/2 border-l border-gray-200">
               <LiveTranscriber />

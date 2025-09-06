@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 // Expose safe API to renderer process
 contextBridge.exposeInMainWorld('electronAPI', {
   record: {
+    getAudioDevices: () => ipcRenderer.invoke('record:getAudioDevices'),
     start: (deviceConfig: any) => ipcRenderer.invoke('record:start', deviceConfig),
     stop: () => ipcRenderer.invoke('record:stop'),
   },
@@ -23,6 +24,7 @@ declare global {
   interface Window {
     electronAPI: {
       record: {
+        getAudioDevices: () => Promise<any[]>;
         start: (deviceConfig: any) => Promise<{ success: boolean; sessionId?: string }>;
         stop: () => Promise<{ success: boolean }>;
       };

@@ -7,6 +7,9 @@
     "dev": "pnpm dlx esbuild main.ts --bundle --platform=node --format=cjs --external:electron --outfile=main.cjs && pnpm dlx esbuild preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=preload.cjs && pnpm dlx electron ./main.cjs",
     "build": "pnpm dlx esbuild main.ts --bundle --platform=node --format=cjs --external:electron --outfile=main.cjs && pnpm dlx esbuild preload.ts --bundle --platform=node --format=cjs --external:electron --outfile=preload.cjs"
   },
+  "dependencies": {
+    "axios": "^1.7.2"
+  },
   "devDependencies": {
     "electron": "^31.3.1"
   }
