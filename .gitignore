@@ -1,4 +1,4 @@
-﻿# Node / TypeScript
+# Node / TypeScript
 node_modules/
 dist/
 coverage/
@@ -11,9 +11,17 @@ __pycache__/
 .venv/
 .env
 .env.*
+.pytest_cache/
+*.egg-info
+
 # Build
 /build/
 /out/
+output/
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Electron
+.electron-user/
