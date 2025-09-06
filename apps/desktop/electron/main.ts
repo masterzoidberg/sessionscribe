@@ -6,9 +6,10 @@ if (!app.requestSingleInstanceLock()) app.quit();
 const createWindow = async () => {
   const win = new BrowserWindow({
     width: 1200, height: 800,
-    webPreferences: { preload: path.join(__dirname, "preload.js"), contextIsolation: true, nodeIntegration: false }
+    webPreferences: { preload: path.join(__dirname, "preload.cjs"), contextIsolation: true, nodeIntegration: false }
   });
-  await win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
+  const DEV_URL = 'http://localhost:3001';
+  await win.loadURL(DEV_URL);
 };
 
 app.whenReady().then(async () => {

@@ -1,0 +1,4 @@
+taskkill /F /IM uvicorn.exe 2>nul || echo "No uvicorn processes found"
+taskkill /F /IM python.exe /FI "WINDOWTITLE eq *uvicorn*" 2>nul || echo "No python uvicorn processes found"
+corepack enable
+corepack prepare pnpm@9 --activate

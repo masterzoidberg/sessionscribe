@@ -1,0 +1,15 @@
+{
+  "name": "sessionscribe",
+  "version": "1.0.0",
+  "description": "Windows desktop app for session recording with live captions, PHI redaction, and DAP notes",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm -C services/asr dev\" \"pnpm -C services/redaction dev\" \"pnpm -C services/insights_bridge dev\" \"pnpm -C apps/desktop/renderer dev\" \"pnpm -C apps/desktop/electron dev\"",
+    "build": "pnpm -C apps/desktop/renderer build && pnpm -C apps/desktop/electron build",
+    "test": "pytest -q && pnpm -C apps/desktop/renderer test",
+    "e2e": "pnpm -C apps/desktop/renderer e2e"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
