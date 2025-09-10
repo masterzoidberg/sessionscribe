@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import asyncio
 import uuid
 import json
+import time
 from typing import Dict, List, Any, Optional
 from .phi_detector import PHIDetector
 from .entity_index import EntityIndex
@@ -12,10 +13,10 @@ app = FastAPI(title="SessionScribe PHI Redaction Service", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["http://127.0.0.1:3001", "http://localhost:3001"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
+    allow_credentials=False,
 )
 
 phi_detector = PHIDetector()
@@ -155,6 +156,57 @@ async def apply_redaction(snapshot_id: str, accepted_entities: List[str]):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class QuickRedactRequest(BaseModel):
+    text: str
+
+@app.post("/redaction/quick")
+async def quick_redact(request: QuickRedactRequest):
+    """Quick redaction workflow: ingest -> detect -> apply all"""
+    try:
+        # Clear previous state
+        entity_index.clear()
+        
+        # Ingest text
+        chunk = TranscriptChunk(
+            text=request.text,
+            channel="mixed",
+            timestamp=time.time(),
+            t0=0.0,
+            t1=len(request.text.split()) * 0.5
+        )
+        
+        # Fast regex detection
+        fast_entities = phi_detector.detect_fast(chunk.text)
+        for entity in fast_entities:
+            entity_index.add_entity({
+                **entity,
+                'chunk_id': f"{chunk.timestamp}_mixed",
+                'context': chunk.text,
+                't0': chunk.t0,
+                't1': chunk.t1,
+                'channel': chunk.channel
+            })
+        
+        # Run slow NER detection
+        if request.text.strip():
+            slow_entities = await phi_detector.detect_slow(request.text)
+            entity_index.merge_slow_entities(slow_entities)
+        
+        # Get all entities and apply redaction
+        entities = entity_index.get_all_entities()
+        redacted_text = phi_detector.apply_redactions(request.text, entities)
+        
+        return {
+            "status": "success",
+            "redacted_text": redacted_text,
+            "entities_redacted": len(entities),
+            "original_length": len(request.text),
+            "redacted_length": len(redacted_text)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 def generate_preview_diff(original: str, redacted: str, entities: List[Dict]) -> str:
     lines = []
     lines.append("=== REDACTION PREVIEW ===")
@@ -186,3 +238,7 @@ async def health():
         "entities_count": entity_index.get_entity_count(),
         "snapshots_count": len(snapshots)
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=7032, reload=True)

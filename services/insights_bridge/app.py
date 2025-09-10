@@ -11,10 +11,10 @@ app = FastAPI(title="SessionScribe Insights Bridge Service", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["http://127.0.0.1:3001", "http://localhost:3001"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
+    allow_credentials=False,
 )
 
 insights_generator = InsightsGenerator()
@@ -115,3 +115,7 @@ async def health():
         "offline_mode": offline_mode,
         "provider": os.environ.get('SS_DASHBOARD_PROVIDER', 'openai_api')
     }
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="127.0.0.1", port=7033, reload=True)

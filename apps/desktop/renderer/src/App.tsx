@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import Recorder from './components/Recorder';
 import LiveTranscriber from './components/LiveTranscriber';
 import PHIReview from './components/PHIReview';
@@ -9,9 +9,20 @@ import LiveDashboard from './components/LiveDashboard';
 const App: React.FC = () => {
   const [currentStep, setCurrentStep] = useState<'record' | 'review' | 'note' | 'dashboard'>('record');
 
+  // Ping test to validate Electron bridge
+  useEffect(() => {
+    if (window.electronAPI?.ping) {
+      window.electronAPI.ping().then(result => {
+        console.log('Electron Ping Test:', result);
+      }).catch(err => {
+        console.error('Electron Ping Test failed:', err);
+      });
+    }
+  }, []);
+
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <div className="app bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-6 py-4 flex-shrink-0">
         <h1 className="text-2xl font-bold text-gray-900">SessionScribe</h1>
         <div className="flex space-x-4 mt-2">
           <button
@@ -41,37 +52,37 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden">
+      <main className="main-content">
         {currentStep === 'record' && (
           <div className="h-full flex">
-            <div className="flex-1 p-6">
+            <div className="flex-1 p-6 overflow-y-auto">
               <Recorder />
             </div>
-            <div className="w-1/2 border-l border-gray-200">
+            <div className="w-1/2 border-l border-gray-200 overflow-y-auto">
               <LiveTranscriber />
             </div>
           </div>
         )}
 
         {currentStep === 'review' && (
-          <div className="p-6">
+          <div className="p-6 h-full overflow-y-auto">
             <PHIReview />
           </div>
         )}
 
         {currentStep === 'note' && (
           <div className="h-full flex">
-            <div className="flex-1 p-6">
+            <div className="flex-1 p-6 overflow-y-auto">
               <SessionWizard />
             </div>
-            <div className="w-1/2 border-l border-gray-200">
+            <div className="w-1/2 border-l border-gray-200 overflow-y-auto">
               <NotePanel />
             </div>
           </div>
         )}
 
         {currentStep === 'dashboard' && (
-          <div className="p-6">
+          <div className="p-6 h-full overflow-y-auto">
             <LiveDashboard />
           </div>
         )}
