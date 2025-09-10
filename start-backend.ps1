@@ -1,0 +1,1 @@
+.\node_modules\.bin\concurrently "uvicorn services.asr.app:app --reload --port 7031" "uvicorn services.redaction.app:app --reload --port 7032" "uvicorn services.insights_bridge.app:app --reload --port 7033" "uvicorn services.note_builder.app:app --reload --port 7034"

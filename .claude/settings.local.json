@@ -1,23 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "all",
-      "Bash(find:*)",
+      "Bash(python -m pip:*)",
       "Bash(python:*)",
+      "Bash(find:*)",
       "Bash(pip install:*)",
-      "Bash(powershell:*)",
-      "Bash(.fix-and-launch.ps1)",
-      "Bash(.\\.venv\\Scripts\\pip.exe install:*)",
-      "Bash(cmd /c:*)",
-      "Bash(.venv/Scripts/pip.exe install:*)",
-      "Bash(pnpm:*)",
-      "Bash(uvicorn:*)",
-      "Bash(taskkill:*)",
-      "Bash(.venv/Scripts/python.exe -m uvicorn:*)",
-      "Bash(.venv/Scripts/python.exe -m pytest services/asr/tests/test_health.py -v)",
-      "Bash(.venv/Scripts/python.exe -m pytest services/asr/tests/test_transcribe_chunk.py -v)",
-      "Read(//c/Users/nicol/Documents/SessionScribe/**)",
-      "Bash(.venv/Scripts/python.exe test_websocket.py:*)"
+      "Bash(pnpm install:*)",
+      "Bash(pnpm:*)"
     ],
     "deny": [],
     "ask": []
