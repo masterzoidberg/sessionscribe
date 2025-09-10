@@ -38,7 +38,7 @@ app.whenReady().then(() => {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self' http://localhost:3001 http://127.0.0.1:3001 ws://localhost:3001 ws://127.0.0.1:3001; " +
-          "script-src 'self' 'unsafe-eval' http://localhost:3001 http://127.0.0.1:3001; " +
+          "script-src 'self' http://localhost:3001 http://127.0.0.1:3001; " +
           "style-src 'self' 'unsafe-inline' http://localhost:3001 http://127.0.0.1:3001; " +
           "connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; " +
           "img-src 'self' data: blob:;"
@@ -544,136 +544,6 @@ function startStereoTranscriptionPolling() {
   }, 1000); // Poll every 1 second
 }
 
-// Dual-Channel IPC handlers
-ipcMain.handle('asr:startDualChannel', async (_, config) => {
-  try {
-    const response = await axios.post(`http://127.0.0.1:${ASR_PORT}/dual-channel/start`, {
-      sample_rate: config.sample_rate || 44100,
-      mic_device_id: config.mic_device_id,
-      output_device_id: config.output_device_id,
-      buffer_size_ms: config.buffer_size_ms || 100,
-      exclusive_mode: config.exclusive_mode || false
-    });
-    
-    currentDualChannelSessionId = response.data.session_id;
-    console.log('Started dual-channel ASR session:', currentDualChannelSessionId);
-    
-    // Start polling for transcription updates
-    startDualChannelTranscriptionPolling();
-    
-    return { success: true, sessionId: currentDualChannelSessionId };
-  } catch (error) {
-    console.error('Error starting dual-channel session:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('asr:stopDualChannel', async () => {
-  if (!currentDualChannelSessionId) {
-    return { success: false, error: "No active dual-channel session" };
-  }
-  
-  try {
-    // Stop polling
-    if (dualChannelStatusInterval) {
-      clearInterval(dualChannelStatusInterval);
-      dualChannelStatusInterval = null;
-    }
-    
-    const response = await axios.post(`http://127.0.0.1:${ASR_PORT}/dual-channel/stop`, {
-      session_id: currentDualChannelSessionId
-    });
-    
-    const sessionId = currentDualChannelSessionId;
-    currentDualChannelSessionId = null;
-    
-    console.log('Stopped dual-channel ASR session:', sessionId);
-    
-    return { 
-      success: true, 
-      final_transcript: response.data.final_transcript,
-      transcript_path: response.data.transcript_path,
-      total_chunks_processed: response.data.total_chunks_processed
-    };
-  } catch (error) {
-    console.error('Error stopping dual-channel session:', error);
-    currentDualChannelSessionId = null;
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('asr:sendDualChannelChunk', async (_, chunkData) => {
-  if (!currentDualChannelSessionId) {
-    return { success: false, error: "No active dual-channel session" };
-  }
-  
-  try {
-    const response = await axios.post(`http://127.0.0.1:${ASR_PORT}/dual-channel/chunk`, {
-      session_id: currentDualChannelSessionId,
-      channel: chunkData.channel, // "therapist" or "client"
-      pcm_chunk_base64: chunkData.pcm_chunk_base64,
-      timestamp: chunkData.timestamp || Date.now() / 1000
-    });
-    
-    return { 
-      success: true,
-      chunks_in_queue: response.data.chunks_in_queue
-    };
-  } catch (error) {
-    console.error('Error sending dual-channel chunk:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-// Function to poll for dual-channel transcription updates
-function startDualChannelTranscriptionPolling() {
-  if (dualChannelStatusInterval) {
-    clearInterval(dualChannelStatusInterval);
-  }
-  
-  dualChannelStatusInterval = setInterval(async () => {
-    if (!currentDualChannelSessionId || !mainWindow) {
-      return;
-    }
-    
-    try {
-      const response = await axios.get(`http://127.0.0.1:${ASR_PORT}/dual-channel/${currentDualChannelSessionId}/status`);
-      
-      if (response.data.recent_transcripts) {
-        // Send each recent transcript chunk to renderer
-        for (const channel of ['therapist', 'client']) {
-          const recentChunks = response.data.recent_transcripts[channel];
-          for (const chunk of recentChunks) {
-            if (chunk.text && chunk.text.trim()) {
-              const transcriptionData = {
-                type: 'transcription',
-                data: {
-                  text: chunk.text,
-                  channel: channel, // Already tagged as "therapist" or "client"
-                  timestamp: chunk.timestamp * 1000, // Convert to ms
-                  confidence: chunk.confidence || 0.8,
-                  is_final: chunk.is_final || true,
-                  partial: false,
-                  latency: {
-                    total: 0, // Will be calculated by renderer
-                    server: 0,
-                    client_sent: chunk.timestamp * 1000,
-                    client_received: Date.now()
-                  },
-                  source: 'dual-channel' // Mark as dual-channel source
-                }
-              };
-              
-              mainWindow.webContents.send('asr:transcriptionData', '_', JSON.stringify(transcriptionData));
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error polling dual-channel status:', error);
-    }
-  }, 500); // Poll every 500ms for more responsive updates
-}
 
 ipcMain.handle('settings:get', async (_, key) => {
   return store.get(key);

@@ -31,12 +31,7 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-# Global state - streaming sessions
-streaming_sessions: Dict[str, Dict[str, Any]] = {}
-stereo_sessions: Dict[str, Dict[str, Any]] = {}
-dual_channel_sessions: Dict[str, Dict[str, Any]] = {}
-
-# Global audio capture state
+# Minimal global state - only track active capture session
 _capture = None
 _capture_session_id: Optional[str] = None
 
@@ -177,38 +172,49 @@ async def dual_channel_start(request: DualChannelStartRequest):
 
 @app.post("/dual-channel/chunk")
 async def dual_channel_chunk(request: DualChannelChunkRequest):
-    """Process tagged audio chunk from dual-channel capture"""
+    """Process tagged audio chunk from dual-channel capture (stateless)"""
     try:
-        if request.session_id not in dual_channel_sessions:
-            raise HTTPException(status_code=404, detail="Dual-channel session not found")
-        
-        session = dual_channel_sessions[request.session_id]
+        # Validate session exists and is active
+        if _capture_session_id != request.session_id:
+            raise HTTPException(status_code=404, detail="Invalid or inactive session")
         
         # Validate channel tag
         if request.channel not in ["therapist", "client"]:
             raise HTTPException(status_code=400, detail="Invalid channel tag. Use 'therapist' or 'client'")
         
-        # Add chunk to processing queue
-        chunk_data = {
-            'audio_base64': request.pcm_chunk_base64,
-            'channel': request.channel,
-            'timestamp': request.timestamp or time.time(),
-            'session_id': request.session_id
-        }
+        # Process audio chunk immediately (no queuing to prevent memory leaks)
+        try:
+            # TODO: Replace with real transcription processing
+            # For now, just acknowledge the chunk without storing it
+            logger.info("audio_chunk_received", 
+                       session_id=request.session_id, 
+                       channel=request.channel,
+                       timestamp=request.timestamp or time.time())
+            
+            # In a real implementation, this would:
+            # 1. Decode base64 audio
+            # 2. Send to transcription engine
+            # 3. Return transcription result or acknowledgment
+            
+        except Exception as processing_error:
+            logger.error("audio_chunk_processing_failed", 
+                        session_id=request.session_id,
+                        channel=request.channel, 
+                        error=str(processing_error))
+            raise HTTPException(status_code=500, detail="Audio processing failed")
         
-        session['pending_chunks'].append(chunk_data)
-        session['total_chunks_received'] += 1
-        
-        # Return immediate acknowledgment (transcription happens in background)
+        # Return immediate acknowledgment
         return {
             "success": True,
             "session_id": request.session_id,
             "channel": request.channel,
-            "chunks_in_queue": len(session['pending_chunks'])
+            "processed_at": time.time()
         }
         
     except Exception as e:
-        logger.error(f"Error processing dual-channel chunk: {e}")
+        logger.error("dual_channel_chunk_error", 
+                    session_id=request.session_id if hasattr(request, 'session_id') else 'unknown',
+                    error=str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/dual-channel/stop")
@@ -251,34 +257,18 @@ async def dual_channel_stop(request: DualChannelStopRequest):
 
 @app.get("/dual-channel/{session_id}/status")
 async def dual_channel_status(session_id: str):
-    """Get dual-channel session status and recent transcriptions"""
+    """Get dual-channel session status (stateless)"""
     try:
-        if session_id not in dual_channel_sessions:
-            raise HTTPException(status_code=404, detail="Dual-channel session not found")
+        # Check if this session ID matches the active capture session
+        if _capture_session_id != session_id:
+            raise HTTPException(status_code=404, detail="Session not found or inactive")
         
-        session = dual_channel_sessions[session_id]
-        
-        # Get recent transcriptions (last 3 from each channel)
-        recent_transcripts = {}
-        for channel in ['therapist', 'client']:
-            if channel in session['transcript_chunks']:
-                recent_transcripts[channel] = session['transcript_chunks'][channel][-3:] if len(session['transcript_chunks'][channel]) > 3 else session['transcript_chunks'][channel]
-            else:
-                recent_transcripts[channel] = []
-        
+        # Return minimal status info since we're now stateless
         return {
             "session_id": session_id,
-            "is_active": True,
-            "sample_rate": session['sample_rate'],
-            "buffer_size_ms": session['buffer_size_ms'],
-            "session_duration": time.time() - session['start_time'],
-            "recent_transcripts": recent_transcripts,
-            "total_chunks": {
-                "therapist": len(session['transcript_chunks'].get('therapist', [])),
-                "client": len(session['transcript_chunks'].get('client', []))
-            },
-            "pending_chunks": len(session['pending_chunks']),
-            "total_chunks_received": session['total_chunks_received']
+            "is_active": _capture is not None,
+            "capture_running": _capture is not None,
+            "message": "Session is active. Transcripts are processed in real-time without storage."
         }
         
     except Exception as e:

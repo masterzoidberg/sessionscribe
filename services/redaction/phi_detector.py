@@ -9,7 +9,8 @@ class PHIDetector:
     def __init__(self):
         self.executor = ThreadPoolExecutor(max_workers=2)
         self.nlp = None
-        self._load_spacy_model()
+        self._model_loading = False
+        self._model_load_task = None
         
         # PHI patterns (regex-based fast detection)
         self.phi_patterns = {
@@ -43,18 +44,32 @@ class PHIDetector:
             ]
         }
 
-    def _load_spacy_model(self):
+    async def _load_spacy_model(self):
+        """Load spaCy model asynchronously (non-blocking startup)"""
+        if self.nlp is not None or self._model_loading:
+            return
+            
+        self._model_loading = True
         try:
-            # Try to load English model
-            self.nlp = spacy.load("en_core_web_sm")
-        except OSError:
-            try:
-                # Try alternative loading method
-                import en_core_web_sm
-                self.nlp = en_core_web_sm.load()
-            except (ImportError, OSError):
-                print("Warning: spaCy English model not found. Run: python -m spacy download en_core_web_sm")
-                self.nlp = None
+            loop = asyncio.get_event_loop()
+            
+            def load_model():
+                try:
+                    # Try to load English model
+                    return spacy.load("en_core_web_sm")
+                except OSError:
+                    try:
+                        # Try alternative loading method
+                        import en_core_web_sm
+                        return en_core_web_sm.load()
+                    except (ImportError, OSError):
+                        print("Warning: spaCy English model not found. Run: python -m spacy download en_core_web_sm")
+                        return None
+            
+            # Load model in thread pool to avoid blocking
+            self.nlp = await loop.run_in_executor(self.executor, load_model)
+        finally:
+            self._model_loading = False
 
     def detect_fast(self, text: str) -> List[Dict[str, Any]]:
         entities = []
@@ -76,6 +91,10 @@ class PHIDetector:
         return entities
 
     async def detect_slow(self, text: str) -> List[Dict[str, Any]]:
+        # Ensure model is loaded (lazy loading)
+        if self.nlp is None:
+            await self._load_spacy_model()
+            
         if not self.nlp:
             return []
         
