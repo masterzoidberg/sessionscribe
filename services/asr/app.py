@@ -12,23 +12,14 @@ import asyncio
 import threading
 # Lazy import - whisper_stream will be imported when needed
 
-# Configure logging with file output
-os.makedirs("scripts/logs/asr", exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("scripts/logs/asr/out.log"),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+# Import centralized configuration and logging
+import sys
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.config import settings
+from shared.logging_config import configure_logging
 
-# Error logging handler
-error_handler = logging.FileHandler("scripts/logs/asr/err.log")
-error_handler.setLevel(logging.ERROR)
-error_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-logger.addHandler(error_handler)
+# Configure structured logging
+logger = configure_logging("asr", settings.asr_port)
 
 app = FastAPI(title="SessionScribe ASR Service", version="1.0.0")
 
@@ -144,7 +135,7 @@ async def dual_channel_start(request: DualChannelStartRequest):
         import numpy as np
         
         session_id = str(uuid.uuid4())
-        logger.info(f"Starting dual-channel session: {session_id}")
+        logger.info("dual_channel_session_start", session_id=session_id)
         
         # Configure WASAPI settings
         settings = WasapiSettings(

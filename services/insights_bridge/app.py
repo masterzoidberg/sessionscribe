@@ -3,9 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
 import os
+import sys
 from typing import Dict, Any, List, Optional
 from .insights_generator import InsightsGenerator
 from .schema_validator import InsightsSchemaValidator
+
+# Import centralized configuration
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.config import settings
 
 app = FastAPI(title="SessionScribe Insights Bridge Service", version="1.0.0")
 
@@ -33,14 +38,11 @@ class InsightsResponse(BaseModel):
 
 @app.post("/insights/send")
 async def send_for_insights(request: InsightsRequest) -> InsightsResponse:
-    # Check gates first
-    offline_mode = os.environ.get('SS_OFFLINE', 'true').lower() == 'true'
-    redact_before_send = os.environ.get('SS_REDACT_BEFORE_SEND', 'true').lower() == 'true'
-    
-    if offline_mode:
+    # Check gates first using centralized config
+    if settings.offline_mode:
         raise HTTPException(status_code=403, detail="Insights disabled in offline mode")
     
-    if not redact_before_send:
+    if not settings.redact_before_send:
         raise HTTPException(status_code=403, detail="Redaction required before sending to insights")
     
     try:
@@ -95,25 +97,21 @@ async def get_redacted_text_from_snapshot(snapshot_id: str) -> Optional[str]:
 @app.get("/insights/status")
 async def get_insights_status():
     """Return the current status of insights service gates."""
-    offline_mode = os.environ.get('SS_OFFLINE', 'true').lower() == 'true'
-    redact_before_send = os.environ.get('SS_REDACT_BEFORE_SEND', 'true').lower() == 'true'
-    
     return {
-        "available": not offline_mode and redact_before_send,
-        "offline_mode": offline_mode,
-        "redact_before_send": redact_before_send,
-        "provider": os.environ.get('SS_DASHBOARD_PROVIDER', 'openai_api')
+        "available": not settings.offline_mode and settings.redact_before_send,
+        "offline_mode": settings.offline_mode,
+        "redact_before_send": settings.redact_before_send,
+        "provider": settings.dashboard_provider,
+        "has_api_key": settings.has_openai_key
     }
 
 @app.get("/health")
 async def health():
-    offline_mode = os.environ.get('SS_OFFLINE', 'true').lower() == 'true'
-    
     return {
         "status": "healthy",
         "service": "insights_bridge",
-        "offline_mode": offline_mode,
-        "provider": os.environ.get('SS_DASHBOARD_PROVIDER', 'openai_api')
+        "offline_mode": settings.offline_mode,
+        "provider": settings.dashboard_provider
     }
 
 if __name__ == "__main__":

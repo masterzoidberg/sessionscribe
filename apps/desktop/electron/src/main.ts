@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, protocol, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, shell, session } from 'electron';
 import * as path from 'path';
 import * as os from 'os';
 import Store from 'electron-store';
@@ -30,6 +30,22 @@ app.whenReady().then(() => {
     
     callback({ path: filePath });
   });
+
+  // Security: Add Content Security Policy headers
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self' http://localhost:3001 http://127.0.0.1:3001 ws://localhost:3001 ws://127.0.0.1:3001; " +
+          "script-src 'self' 'unsafe-eval' http://localhost:3001 http://127.0.0.1:3001; " +
+          "style-src 'self' 'unsafe-inline' http://localhost:3001 http://127.0.0.1:3001; " +
+          "connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; " +
+          "img-src 'self' data: blob:;"
+        ]
+      }
+    });
+  });
 });
 
 const createWindow = (): void => {
@@ -41,7 +57,7 @@ const createWindow = (): void => {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true, // Enable sandbox for security
       preload: preloadPath,
     },
     show: false,
@@ -89,6 +105,68 @@ app.on('second-instance', () => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore();
     mainWindow.focus();
+  }
+});
+
+// Quit lifecycle cleanup - stop recordings and services
+app.on('before-quit', async (e) => {
+  e.preventDefault(); // Prevent immediate quit
+  
+  try {
+    console.log('[main] Stopping services before quit...');
+    
+    // Stop dual-channel session if active
+    if (currentDualChannelSessionId) {
+      try {
+        await axios.post(`http://127.0.0.1:${ASR_PORT}/dual-channel/stop`, {
+          session_id: currentDualChannelSessionId
+        }, { timeout: 3000 });
+        console.log('[main] Stopped dual-channel session on quit');
+      } catch (err) {
+        console.warn('[main] Failed to stop dual-channel session on quit:', err.message);
+      }
+    }
+    
+    // Stop legacy stream session if active
+    if (currentSessionId) {
+      try {
+        await axios.post(`http://127.0.0.1:${ASR_PORT}/stream/stop`, {
+          session_id: currentSessionId
+        }, { timeout: 3000 });
+        console.log('[main] Stopped ASR stream session on quit');
+      } catch (err) {
+        console.warn('[main] Failed to stop ASR stream session on quit:', err.message);
+      }
+    }
+    
+    // Stop stereo session if active
+    if (currentStereoSessionId) {
+      try {
+        await axios.post(`http://127.0.0.1:${ASR_PORT}/control/stereo/stop`, {
+          session_id: currentStereoSessionId
+        }, { timeout: 3000 });
+        console.log('[main] Stopped stereo session on quit');
+      } catch (err) {
+        console.warn('[main] Failed to stop stereo session on quit:', err.message);
+      }
+    }
+    
+    // Clear intervals
+    if (streamingInterval) clearInterval(streamingInterval);
+    if (stereoStatusInterval) clearInterval(stereoStatusInterval);
+    if (dualChannelStatusInterval) clearInterval(dualChannelStatusInterval);
+    
+    // Close websocket if open
+    if (transcriptionSocket) {
+      transcriptionSocket.close();
+    }
+    
+    console.log('[main] Cleanup complete, proceeding with quit');
+  } catch (err) {
+    console.error('[main] Error during quit cleanup:', err);
+  } finally {
+    // Allow quit to proceed
+    app.exit(0);
   }
 });
 

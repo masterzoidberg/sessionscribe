@@ -3,9 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
 import os
+import sys
 from typing import Dict, Any, List, Optional
 from .note_generator import NoteGenerator
 from .schema_validator import SchemaValidator
+
+# Import centralized configuration
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from shared.config import settings
 
 app = FastAPI(title="SessionScribe Note Builder Service", version="1.0.0")
 
@@ -36,10 +41,8 @@ class NoteResponse(BaseModel):
 @app.post("/note/generate")
 async def generate_note(request: NoteRequest) -> NoteResponse:
     try:
-        # Check if we're in offline mode
-        offline_mode = os.environ.get('SS_OFFLINE', 'true').lower() == 'true'
-        
-        if offline_mode:
+        # Check if we're in offline mode using centralized config
+        if settings.offline_mode:
             # Return placeholder note for offline mode
             dap_json = {
                 "session_type": request.session_type,
@@ -160,9 +163,7 @@ def format_note_as_text(dap_json: Dict[str, Any]) -> str:
 
 async def save_note_to_file(note_text: str) -> Optional[str]:
     try:
-        output_dir = os.environ.get('SS_OUTPUT_DIR')
-        if not output_dir:
-            output_dir = os.path.join(os.path.expanduser('~'), 'Documents', 'SessionScribe')
+        output_dir = settings.output_dir
         
         os.makedirs(output_dir, exist_ok=True)
         
@@ -185,7 +186,7 @@ async def health():
     return {
         "status": "healthy",
         "service": "note_builder",
-        "offline_mode": os.environ.get('SS_OFFLINE', 'true').lower() == 'true'
+        "offline_mode": settings.offline_mode
     }
 
 if __name__ == "__main__":
