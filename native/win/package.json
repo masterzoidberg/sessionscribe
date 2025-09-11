@@ -1,0 +1,21 @@
+{
+  "name": "@sessionscribe/win-capture",
+  "version": "1.0.0",
+  "description": "Windows WASAPI audio capture for SessionScribe",
+  "main": "index.js",
+  "scripts": {
+    "build": "node-gyp rebuild",
+    "clean": "node-gyp clean",
+    "configure": "node-gyp configure"
+  },
+  "dependencies": {
+    "node-addon-api": "^7.0.0"
+  },
+  "devDependencies": {
+    "node-gyp": "^10.0.0"
+  },
+  "gypfile": true,
+  "keywords": ["audio", "capture", "wasapi", "windows", "sessionscribe"],
+  "author": "SessionScribe",
+  "license": "MIT"
+}
