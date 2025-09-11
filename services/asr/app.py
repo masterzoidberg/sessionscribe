@@ -16,10 +16,10 @@ import threading
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from shared.config import settings
-from shared.logging_config import configure_logging
+from shared.logging_config import setup_structured_logging
 
 # Configure structured logging
-logger = configure_logging("asr", settings.asr_port)
+logger = setup_structured_logging("asr", settings.asr_port)
 
 app = FastAPI(title="SessionScribe ASR Service", version="1.0.0")
 
