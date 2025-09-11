@@ -1,0 +1,152 @@
+```mermaid
+flowchart TD
+    %% SessionScribe PHI Data Flow - Actual Implementation
+    
+    %% Audio Capture Layer
+    MIC[🎤 Microphone<br/>Raw Audio]
+    SYS[🔊 System Audio<br/>Loopback]
+    WASAPI[WASAPI Capture<br/>native/win/AudioCapture/]
+    
+    %% Audio Processing
+    DUAL[DualRecorder<br/>L=Mic, R=System<br/>48kHz/16-bit]
+    WAV[Stereo WAV File<br/>%UserProfile%\Documents\SessionScribe\Recordings\]
+    
+    %% ASR Pipeline
+    ASR[ASR Service :7035<br/>services/asr/app.py]
+    TRANSCRIPT[Raw Transcript<br/>⚠️ CONTAINS PHI]
+    
+    %% Redaction Pipeline
+    RED[Redaction Service :7032<br/>services/redaction/app.py]
+    PHI_DETECT[PHI Detector<br/>spaCy + Regex]
+    REDACTED[Redacted Text<br/>✅ PHI REMOVED]
+    
+    %% Processing Services
+    INSIGHTS[Insights Bridge :7033<br/>OFFLINE MODE]
+    NOTES[Note Builder :7034<br/>OFFLINE MODE]
+    
+    %% Security & Logging
+    CRED[Windows Credential Manager<br/>keytar/keyring]
+    LOGS[Structured Logs<br/>✅ METADATA ONLY]
+    METRICS[Prometheus Metrics<br/>✅ NO PHI CONTENT]
+    
+    %% External (Currently Offline)
+    OPENAI[OpenAI API<br/>❌ DISABLED]
+    
+    %% Data Flow
+    MIC --> WASAPI
+    SYS --> WASAPI
+    WASAPI --> DUAL
+    DUAL --> WAV
+    DUAL --> ASR
+    
+    ASR --> TRANSCRIPT
+    TRANSCRIPT --> RED
+    RED --> PHI_DETECT
+    PHI_DETECT --> REDACTED
+    
+    REDACTED --> INSIGHTS
+    REDACTED --> NOTES
+    
+    %% Security Controls
+    ASR --> LOGS
+    RED --> LOGS
+    INSIGHTS --> LOGS
+    NOTES --> LOGS
+    
+    ASR --> METRICS
+    RED --> METRICS
+    INSIGHTS --> METRICS  
+    NOTES --> METRICS
+    
+    ASR -.-> CRED
+    RED -.-> CRED
+    INSIGHTS -.-> CRED
+    NOTES -.-> CRED
+    
+    %% External Disabled
+    INSIGHTS -.->|OFFLINE| OPENAI
+    
+    %% PHI Protection Boundaries
+    subgraph PHI_ZONE [⚠️ PHI ZONE - PROTECTED]
+        TRANSCRIPT
+        WAV
+    end
+    
+    subgraph SAFE_ZONE [✅ SAFE ZONE - NO PHI]
+        REDACTED
+        LOGS
+        METRICS
+        CRED
+    end
+    
+    subgraph OFFLINE_ZONE [🔒 OFFLINE - NO EGRESS]
+        INSIGHTS
+        NOTES
+        OPENAI
+    end
+    
+    %% Critical Security Controls
+    classDef phiData fill:#ffcccc,stroke:#ff0000,stroke-width:3px
+    classDef safeData fill:#ccffcc,stroke:#00ff00,stroke-width:2px
+    classDef offlineData fill:#ccccff,stroke:#0000ff,stroke-width:2px
+    classDef securityControl fill:#ffff99,stroke:#ffaa00,stroke-width:2px
+    
+    class TRANSCRIPT,WAV phiData
+    class REDACTED,LOGS,METRICS safeData
+    class INSIGHTS,NOTES,OPENAI offlineData
+    class CRED,PHI_DETECT securityControl
+```
+
+## Security Implementation Notes
+
+### ✅ IMPLEMENTED PROTECTIONS
+
+1. **PHI Containment**
+   - Raw transcripts isolated to ASR service memory
+   - WAV files stored locally only (`%UserProfile%\Documents\SessionScribe\Recordings\`)
+   - Redaction pipeline mandatory before downstream processing
+
+2. **Logging Safety** (`services/shared/logging_config.py:80-93`)
+   ```python
+   unsafe_keywords = ['transcript', 'text', 'content', 'audio_data', 'speech',
+                      'utterance', 'phrase', 'word', 'sentence']
+   # Fields containing these keywords are automatically filtered
+   ```
+
+3. **Offline Mode Enforcement**
+   - All services default to `offline_mode: true`
+   - OpenAI API integration disabled by default
+   - No automatic egress of PHI data
+
+4. **Credential Security**
+   - Windows Credential Manager integration via keytar/keyring
+   - JWT signing keys stored securely
+   - No hardcoded secrets in source code
+
+### ⚠️ IMPLEMENTATION GAPS
+
+1. **WebSocket Authentication Not Active**
+   - JWT framework present but not enforced on WS connections
+   - Bearer token validation missing in ASR service
+
+2. **Redaction Pipeline Untested**
+   - PHI detection patterns defined but end-to-end flow unvalidated
+   - No confirmation that all PHI is successfully removed
+
+3. **Data Retention Policy Undefined**
+   - WAV files accumulate indefinitely in Documents folder
+   - No automatic cleanup of recorded audio files
+
+### 🔒 CRITICAL CONTROLS REQUIRED
+
+1. **Mandatory Redaction Gate**
+   - Block any downstream processing until PHI removed
+   - Validate redaction completeness before insights generation
+
+2. **Access Auditing**
+   - Log all access to PHI-containing data (metadata only)
+   - Track redaction effectiveness and coverage
+
+3. **Data Lifecycle Management**
+   - Auto-purge WAV files after processing
+   - Secure deletion of temporary transcript data
