@@ -7,5 +7,6 @@ numpy>=1.24.0
 pywin32>=305
 pydantic-settings>=2.0.0
 webrtcvad>=2.0.10
-wave
 keyring>=24.0.0
+prometheus_client>=0.19.0
+torch>=2.0.0

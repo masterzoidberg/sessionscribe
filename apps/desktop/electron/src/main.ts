@@ -118,7 +118,7 @@ app.on('before-quit', async (e) => {
     // Stop dual-channel session if active
     if (currentDualChannelSessionId) {
       try {
-        await axios.post(`http://127.0.0.1:${ASR_PORT}/dual-channel/stop`, {
+        await axios.post(`http://127.0.0.1:7036/dual-channel/stop`, {
           session_id: currentDualChannelSessionId
         }, { timeout: 3000 });
         console.log('[main] Stopped dual-channel session on quit');
@@ -183,7 +183,7 @@ let currentDualChannelSessionId: string | null = null;
 let dualChannelStatusInterval: NodeJS.Timeout | null = null;
 
 // Service ports from environment
-const ASR_PORT = process.env.ASR_PORT || '7035';
+const ASR_PORT = process.env.ASR_PORT || '7036';
 const REDACTION_PORT = process.env.REDACTION_PORT || '7032';
 const INSIGHTS_PORT = process.env.INSIGHTS_PORT || '7033';
 const NOTE_BUILDER_PORT = process.env.NOTE_BUILDER_PORT || '7034';
@@ -204,13 +204,7 @@ ipcMain.handle('audio.enumerateDevices', async () => {
 
 ipcMain.handle('asr.startDualChannel', async (_, config) => {
   try {
-    const response = await axios.post(`http://127.0.0.1:${ASR_PORT}/dual-channel/start`, {
-      sample_rate: config.sample_rate || 44100,
-      mic_device_id: config.mic_device_id,
-      output_device_id: config.output_device_id,
-      buffer_size_ms: config.buffer_size_ms || 100,
-      exclusive_mode: config.exclusive_mode || false
-    });
+    const response = await axios.post(`http://127.0.0.1:7036/dual-channel/start`);
     
     currentDualChannelSessionId = response.data.session_id;
     console.log('Started dual-channel ASR session via bridge:', currentDualChannelSessionId);
@@ -218,8 +212,11 @@ ipcMain.handle('asr.startDualChannel', async (_, config) => {
     return { 
       success: true, 
       session_id: currentDualChannelSessionId,
+      output_path: response.data.output_path,
       sample_rate: response.data.sample_rate,
-      buffer_size_ms: response.data.buffer_size_ms
+      test_mode: response.data.test_mode,
+      mic_device: response.data.mic_device,
+      loopback_device: response.data.loopback_device
     };
   } catch (error) {
     console.error('Error starting dual-channel session via bridge:', error);
@@ -229,7 +226,7 @@ ipcMain.handle('asr.startDualChannel', async (_, config) => {
 
 ipcMain.handle('asr.stopDualChannel', async (_, sessionId) => {
   try {
-    const response = await axios.post(`http://127.0.0.1:${ASR_PORT}/dual-channel/stop`, {
+    const response = await axios.post(`http://127.0.0.1:7036/dual-channel/stop`, {
       session_id: sessionId
     });
     
@@ -242,7 +239,12 @@ ipcMain.handle('asr.stopDualChannel', async (_, sessionId) => {
     }
     
     console.log('Stopped dual-channel ASR session via bridge:', sessionId);
-    return { success: true };
+    return { 
+      success: true,
+      session_data: response.data.session_data,
+      validation_result: response.data.validation_result,
+      metrics: response.data.metrics
+    };
   } catch (error) {
     console.error('Error stopping dual-channel session via bridge:', error);
     return { success: false, error: error.message };
@@ -412,7 +414,7 @@ ipcMain.handle('asr:disconnect', async () => {
         clearInterval(dualChannelStatusInterval);
         dualChannelStatusInterval = null;
       }
-      await axios.post(`http://127.0.0.1:${ASR_PORT}/dual-channel/stop`, {
+      await axios.post(`http://127.0.0.1:7036/dual-channel/stop`, {
         session_id: currentDualChannelSessionId
       });
     } catch (error) {
